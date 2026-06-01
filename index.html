@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Prototype: Gym Leader Defense</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background-color: #1a1a2e;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+            text-transform: uppercase;
+            overflow: hidden;
+        }
+        #game-container {
+            background-color: #fff;
+            width: 100vw;
+            height: 100vh;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Screens */
+        #intro-screen, #selection-screen, #pokemon-selection-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #1a1a2e;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+        
+        .blink-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 2em;
+            cursor: pointer;
+            animation: blinker 1.5s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+        
+        .pokemon-card {
+            background: #fff;
+            border: 4px solid #000;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 6px 6px 0px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+            color: #333;
+        }
+        .pokemon-card:hover {
+            transform: translateY(-5px);
+            background: #f1f1f1;
+        }
+        .pokemon-card img {
+            width: 150px;
+            image-rendering: pixelated;
+        }
+        .gym-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            width: 1000px;
+        }
+        .type-card {
+            padding: 30px 10px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 1.1em;
+            transition: transform 0.1s;
+            border: 4px solid #000;
+            box-shadow: 6px 6px 0px rgba(0,0,0,0.5);
+            color: white;
+            font-family: 'Press Start 2P', monospace;
+        }
+        .type-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px rgba(0,0,0,0.5);
+        }
+        
+        /* Battle Screen */
+        #battle-container {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+        #battle-screen {
+            height: 65%;
+            flex: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 3% 8%;
+            background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 60%, #7CFC00 60%, #7CFC00 100%);
+            position: relative;
+        }
+        .pokemon-box {
+            background: #fff;
+            border: 6px solid #000;
+            padding: 20px;
+            width: 400px;
+            max-width: 45%;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.4);
+            z-index: 2;
+        }
+        #enemy-box {
+            position: absolute;
+            top: 5%;
+            left: 5%;
+        }
+        #player-box {
+            position: absolute;
+            bottom: 5%;
+            right: 5%;
+        }
+        .sprite img {
+            width: 25vh;
+            max-width: 180px;
+            image-rendering: pixelated;
+            margin-top: -10px;
+        }
+        
+        .name-level {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2em;
+            margin-bottom: 8px;
+        }
+        .hp-bar-bg {
+            background-color: #bdc3c7;
+            height: 20px;
+            border: 4px solid #000;
+            padding: 2px;
+        }
+        .hp-bar-fill {
+            background-color: #2ecc71;
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s, background-color 0.2s;
+        }
+        .hp-text {
+            text-align: right;
+            font-size: 1em;
+            margin-top: 8px;
+        }
+        .sprite {
+            text-align: center;
+            margin: 10px 0;
+            image-rendering: pixelated;
+        }
+        .move-indicator {
+            text-align: center;
+            font-size: 1.5em;
+            color: #e74c3c;
+            margin-top: -15px;
+            height: 20px;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            text-shadow: 2px 2px 0 #000;
+            transform: translateY(10px);
+        }
+        .show-move {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes attackLungePlayer {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(30px, -30px); }
+            100% { transform: translate(0, 0); }
+        }
+        @keyframes attackLungeEnemy {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(-30px, 30px); }
+            100% { transform: translate(0, 0); }
+        }
+        @keyframes damageShake {
+            0% { transform: translate(0, 0); filter: brightness(1); }
+            20% { transform: translate(-15px, 0); filter: brightness(1.5); }
+            40% { transform: translate(15px, 0); filter: brightness(1); }
+            60% { transform: translate(-15px, 0); filter: brightness(1.5); }
+            80% { transform: translate(15px, 0); filter: brightness(1); }
+            100% { transform: translate(0, 0); filter: brightness(1); }
+        }
+        .anim-attack-player { animation: attackLungePlayer 0.3s ease-in-out; }
+        .anim-attack-enemy { animation: attackLungeEnemy 0.3s ease-in-out; }
+        .anim-damage { animation: damageShake 0.4s ease-in-out; }
+        
+        #ui-panel {
+            height: 35%;
+            flex: none;
+            display: flex;
+            background-color: #fff;
+            color: #000;
+            border-top: 8px solid #000;
+        }
+        #message-box {
+            flex: 1.5;
+            padding: 30px;
+            font-size: 1.5em;
+            line-height: 1.8;
+            border-right: 8px solid #000;
+        }
+        #action-menu {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 6px;
+            background-color: #000;
+            padding: 6px;
+        }
+        .status-list {
+            margin-top: 10px;
+            font-size: 0.7em;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .stat-bar-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .stat-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stat-label {
+            min-width: 50px;
+            font-weight: bold;
+        }
+        .stat-bar-bg {
+            flex: 1;
+            background-color: #bdc3c7;
+            height: 12px;
+            border: 2px solid #000;
+            padding: 1px;
+        }
+        .stat-bar-fill {
+            background-color: #3498db;
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s, background-color 0.2s;
+        }
+        .stamina-bar-fill {
+            background-color: #f39c12;
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s, background-color 0.2s;
+        }
+        .defense-bar-fill {
+            background-color: #95a5a6;
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s, background-color 0.2s;
+        }
+        button {
+            background-color: #e74c3c;
+            color: white;
+            border: 6px solid #000;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: transform 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-transform: uppercase;
+            white-space: normal;
+            line-height: 1.2;
+        }
+        button small {
+            font-size: 0.7em;
+            line-height: 1.1;
+            display: block;
+            margin-top: 6px;
+            text-transform: none;
+        }
+        button:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        button:disabled {
+            background-color: #7f8c8d !important;
+            cursor: not-allowed;
+            color: #bdc3c7;
+        }
+
+        /* Type Colors */
+        .type-rock { background-color: #a08d60; color: white; border-color: #83724c; }
+        .type-water { background-color: #3498db; color: white; border-color: #2980b9;}
+        .type-electric { background-color: #f1c40f; color: black; border-color: #d4ac0d;}
+        .type-grass { background-color: #2ecc71; color: white; border-color: #27ae60;}
+        .type-fire { background-color: #e74c3c; color: white; border-color: #c0392b;}
+        .type-psychic { background-color: #9b59b6; color: white; border-color: #8e44ad;}
+        .type-ghost { background-color: #34495e; color: white; border-color: #2c3e50;}
+        .type-dragon { background-color: #e67e22; color: white; border-color: #d35400;}
+        .type-normal { background-color: #95a5a6; color: white; border-color: #7f8c8d;}
+        .type-fighting { background-color: #c0392b; color: white; border-color: #922b21;}
+        .type-flying { background-color: #85c1e9; color: black; border-color: #5dade2;}
+        .type-poison { background-color: #8e44ad; color: white; border-color: #732d91;}
+        .type-ground { background-color: #d4ac0d; color: white; border-color: #b9770e;}
+        .type-bug { background-color: #27ae60; color: white; border-color: #1e8449;}
+        .type-steel { background-color: #bdc3c7; color: black; border-color: #95a5a6;}
+        .type-ice { background-color: #aed6f1; color: black; border-color: #85c1e9;}
+        .type-dark { background-color: #2c3e50; color: white; border-color: #1a252f;}
+        .type-fairy { background-color: #f5b7b1; color: black; border-color: #f1948a;}
+        .type-buff { background-color: #16a085; color: white; border-color: #1abc9c;}
+        .type-heal { background-color: #e67e22; color: white; border-color: #d35400;}
+        .type-status { background-color: #34495e; color: white; border-color: #2c3e50;}
+
+        button.type-rock:hover:not(:disabled) { background-color: #83724c; }
+        button.type-water:hover:not(:disabled) { background-color: #2980b9; }
+        button.type-electric:hover:not(:disabled) { background-color: #d4ac0d; }
+        button.type-grass:hover:not(:disabled) { background-color: #27ae60; }
+        button.type-fire:hover:not(:disabled) { background-color: #c0392b; }
+        button.type-psychic:hover:not(:disabled) { background-color: #8e44ad; }
+        button.type-ghost:hover:not(:disabled) { background-color: #2c3e50; }
+        button.type-dragon:hover:not(:disabled) { background-color: #d35400; }
+        button.type-normal:hover:not(:disabled) { background-color: #7f8c8d; }
+        button.type-fighting:hover:not(:disabled) { background-color: #922b21; }
+        button.type-flying:hover:not(:disabled) { background-color: #5dade2; }
+        button.type-poison:hover:not(:disabled) { background-color: #732d91; }
+        button.type-ground:hover:not(:disabled) { background-color: #b9770e; }
+        button.type-bug:hover:not(:disabled) { background-color: #1e8449; }
+        button.type-steel:hover:not(:disabled) { background-color: #95a5a6; }
+        button.type-ice:hover:not(:disabled) { background-color: #85c1e9; }
+        button.type-dark:hover:not(:disabled) { background-color: #1a252f; }
+        button.type-fairy:hover:not(:disabled) { background-color: #f1948a; }
+        button.type-buff:hover:not(:disabled) { background-color: #1abc9c; }
+        button.type-heal:hover:not(:disabled) { background-color: #d35400; }
+        button.type-status:hover:not(:disabled) { background-color: #1a252f; }
+        
+    </style>
+</head>
+<body>
+
+<button id="muteBtn"
+        style="
+            position:absolute;
+            top:10px;
+            right:10px;
+            z-index:999;
+        "
+    >🔊 Mute</button>
+
+<div id="game-container">
+    
+    <!-- Intro Screen -->
+    <div id="intro-screen">
+        <h1 style="font-size: 4em; color: #e74c3c; text-shadow: 6px 6px 0px #000; text-align: center; margin-bottom: 50px;">THE GYM OF MINE</h1>
+        <button class="blink-btn" onclick="showTypeSelection()">Press Start</button>
+        <button class="blink-btn" onclick="testSound()" style="margin-top: 20px; font-size: 1.1em;">Test Sound</button>
+        <button class="blink-btn" onclick="copyPlayLink()" style="margin-top: 20px; font-size: 1.1em;">Copy Mobile Link</button>
+        <div id="link-status" style="margin-top: 12px; color: #f9ca24; font-size: 0.8em; text-align:center;"></div>
+    </div>
+
+    <!-- Leader Selection Screen -->
+    <div id="selection-screen" style="display: none;">
+        <h2 style="color: white; margin-bottom: 30px; font-size: 1.5em; text-align: center;">Choose Your Gym Type</h2>
+        <div class="gym-grid">
+            <div class="type-card type-normal" onclick="showPokemonSelection('normal')">Normal</div>
+            <div class="type-card type-fire" onclick="showPokemonSelection('fire')">Fire</div>
+            <div class="type-card type-water" onclick="showPokemonSelection('water')">Water</div>
+            <div class="type-card type-grass" onclick="showPokemonSelection('grass')">Grass</div>
+            <div class="type-card type-electric" onclick="showPokemonSelection('electric')">Electric</div>
+            <div class="type-card type-ice" onclick="showPokemonSelection('ice')">Ice</div>
+            <div class="type-card type-fighting" onclick="showPokemonSelection('fighting')">Fighting</div>
+            <div class="type-card type-poison" onclick="showPokemonSelection('poison')">Poison</div>
+            <div class="type-card type-ground" onclick="showPokemonSelection('ground')">Ground</div>
+            <div class="type-card type-flying" onclick="showPokemonSelection('flying')">Flying</div>
+            <div class="type-card type-psychic" onclick="showPokemonSelection('psychic')">Psychic</div>
+            <div class="type-card type-bug" onclick="showPokemonSelection('bug')">Bug</div>
+            <div class="type-card type-rock" onclick="showPokemonSelection('rock')">Rock</div>
+            <div class="type-card type-ghost" onclick="showPokemonSelection('ghost')">Ghost</div>
+            <div class="type-card type-dragon" onclick="showPokemonSelection('dragon')">Dragon</div>
+            <div class="type-card type-dark" onclick="showPokemonSelection('dark')">Dark</div>
+            <div class="type-card type-steel" onclick="showPokemonSelection('steel')">Steel</div>
+            <div class="type-card type-fairy" onclick="showPokemonSelection('fairy')">Fairy</div>
+        </div>
+    </div>
+
+    <!-- Pokemon Selection Screen -->
+    <div id="pokemon-selection-screen" style="display: none;">
+        <h2 style="color: white; margin-bottom: 30px; font-size: 1.5em; text-align: center;">Choose Your Partner Pokémon</h2>
+        <div id="pokemon-grid" class="gym-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Overworld Screen -->
+    <div id="overworld-screen" style="display: none; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; background: #1a1a2e; position: absolute; top: 0; left: 0; z-index: 5;">
+        <h2 style="color: white; margin-bottom: 10px; font-size: 1.2em;">Use WASD or Arrows to Move. Walk into an NPC to Battle!</h2>
+        <canvas id="game-canvas" width="800" height="600" style="background: #27ae60; border: 8px solid #000; image-rendering: pixelated; box-shadow: 10px 10px 0 rgba(0,0,0,0.5);"></canvas>
+    </div>
+
+    <!-- Battle Screen -->
+    <div id="battle-container">
+        <div id="battle-screen">
+            <div id="enemy-box" class="pokemon-box">
+                <div class="name-level">
+                    <span id="enemy-name">Ivysaur</span>
+                    <span>Lv 10</span>
+                </div>
+                <div class="hp-bar-bg"><div id="enemy-hp-fill" class="hp-bar-fill"></div></div>
+                <div id="enemy-hp-text" class="hp-text">-- / --</div>
+                <div class="sprite" id="enemy-sprite">🐸</div>
+                <div class="move-indicator" id="enemy-indicator"></div>
+                <div class="stat-bar-container">
+                    <div class="stat-bar-row">
+                        <span class="stat-label">DEF:</span>
+                        <div class="stat-bar-bg"><div id="enemy-def-fill" class="defense-bar-fill"></div></div>
+                    </div>
+                    <div class="stat-bar-row">
+                        <span class="stat-label">STA:</span>
+                        <div class="stat-bar-bg"><div id="enemy-stamina-fill" class="stamina-bar-fill"></div></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="player-box" class="pokemon-box">
+                <div class="name-level">
+                    <span id="player-name">Player</span>
+                    <span>Lv 12</span>
+                </div>
+                <div class="hp-bar-bg"><div id="player-hp-fill" class="hp-bar-fill"></div></div>
+                <div id="player-hp-text" class="hp-text">-- / --</div>
+                <div class="sprite" id="player-sprite">❓</div>
+                <div class="move-indicator" id="player-indicator"></div>
+                <div class="stat-bar-container">
+                    <div class="stat-bar-row">
+                        <span class="stat-label">DEF:</span>
+                        <div class="stat-bar-bg"><div id="player-def-fill" class="defense-bar-fill"></div></div>
+                    </div>
+                    <div class="stat-bar-row">
+                        <span class="stat-label">STA:</span>
+                        <div class="stat-bar-bg"><div id="player-stamina-fill" class="stamina-bar-fill"></div></div>
+                    </div>
+                </div>
+                <button onclick="switchPokemon()" id="switch-btn" style="margin-top: 8px; width: 100%; padding: 8px; font-size: 0.9em;">SWITCH</button>
+            </div>
+        </div>
+        
+        <div id="ui-panel">
+            <div id="message-box">Waiting to start...</div>
+            <div id="action-menu">
+                <button onclick="useMove(0)" id="btn-0">Move 1</button>
+                <button onclick="useMove(1)" id="btn-1">Move 2</button>
+                <button onclick="useMove(2)" id="btn-2">Move 3</button>
+                <button onclick="useMove(3)" id="btn-3">Move 4</button>
+                <button onclick="useMove(4)" id="btn-4">Move 5</button>
+                <button onclick="useMove(5)" id="btn-5">Move 6</button>
+            </div>
+        </div>
+    </div>
+    
+</div>
+
+<script>
+    // Audio System
+    let audioContext = null;
+
+    function getAudioContext() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioContext;
+    }
+
+    function resumeAudioContext() {
+        const ac = getAudioContext();
+        if (ac.state === 'suspended') {
+            ac.resume();
+        }
+    }
+
+    function createTone({ frequency, duration = 0.1, type = 'sine', volume = 0.2 }) {
+        return {
+            play() {
+                const ac = getAudioContext();
+                if (ac.state === 'suspended') {
+                    ac.resume();
+                }
+
+                const now = ac.currentTime;
+                const oscillator = ac.createOscillator();
+                const gain = ac.createGain();
+
+                oscillator.type = type;
+                oscillator.frequency.value = frequency;
+                gain.gain.setValueAtTime(volume, now);
+
+                oscillator.connect(gain).connect(ac.destination);
+                oscillator.start(now);
+                oscillator.stop(now + duration);
+            }
+        };
+    }
+
+    function createSequence(steps, initialDelay = 0) {
+        return {
+            play() {
+                const ac = getAudioContext();
+                if (ac.state === 'suspended') {
+                    ac.resume();
+                }
+
+                const start = ac.currentTime + initialDelay;
+                steps.reduce((time, step) => {
+                    const oscillator = ac.createOscillator();
+                    const gain = ac.createGain();
+                    const noteStart = time + (step.delay || 0);
+
+                    oscillator.type = step.type || 'sine';
+                    oscillator.frequency.value = step.frequency;
+                    gain.gain.setValueAtTime(step.volume ?? 0.18, noteStart);
+
+                    oscillator.connect(gain).connect(ac.destination);
+                    oscillator.start(noteStart);
+                    oscillator.stop(noteStart + step.duration);
+
+                    return noteStart + step.duration;
+                }, start);
+            }
+        };
+    }
+
+    const sounds = {
+        bgm: createSequence([
+            { frequency: 220, duration: 0.18, type: 'triangle', volume: 0.1 },
+            { frequency: 246.94, duration: 0.18, type: 'triangle', volume: 0.1, delay: 0.18 },
+            { frequency: 261.63, duration: 0.18, type: 'triangle', volume: 0.1, delay: 0.36 },
+            { frequency: 293.66, duration: 0.18, type: 'triangle', volume: 0.1, delay: 0.54 }
+        ]),
+        attack: createTone({ frequency: 880, duration: 0.08, type: 'square', volume: 0.22 }),
+        hit: createTone({ frequency: 260, duration: 0.06, type: 'triangle', volume: 0.22 }),
+        heal: createTone({ frequency: 520, duration: 0.16, type: 'triangle', volume: 0.18 }),
+        victory: createSequence([
+            { frequency: 880, duration: 0.08, type: 'sine', volume: 0.24 },
+            { frequency: 1046.5, duration: 0.08, type: 'sine', volume: 0.24, delay: 0.1 },
+            { frequency: 1318.5, duration: 0.12, type: 'sine', volume: 0.24, delay: 0.2 }
+        ]),
+        defeat: createSequence([
+            { frequency: 220, duration: 0.16, type: 'triangle', volume: 0.16 },
+            { frequency: 196, duration: 0.12, type: 'triangle', volume: 0.14, delay: 0.16 }
+        ]),
+        thunder: createSequence([
+            { frequency: 120, duration: 0.14, type: 'triangle', volume: 0.16 },
+            { frequency: 90, duration: 0.12, type: 'triangle', volume: 0.12, delay: 0.14 },
+            { frequency: 220, duration: 0.16, type: 'square', volume: 0.22, delay: 0.26 }
+        ]),
+        fire: createSequence([
+            { frequency: 880, duration: 0.06, type: 'sawtooth', volume: 0.22 },
+            { frequency: 1040, duration: 0.08, type: 'sawtooth', volume: 0.18, delay: 0.06 },
+            { frequency: 1320, duration: 0.06, type: 'triangle', volume: 0.16, delay: 0.14 }
+        ]),
+        water: createSequence([
+            { frequency: 520, duration: 0.14, type: 'sine', volume: 0.16 },
+            { frequency: 440, duration: 0.18, type: 'sine', volume: 0.14, delay: 0.12 },
+            { frequency: 360, duration: 0.22, type: 'sine', volume: 0.12, delay: 0.26 }
+        ]),
+        psychic: createSequence([
+            { frequency: 880, duration: 0.12, type: 'triangle', volume: 0.18 },
+            { frequency: 1046.5, duration: 0.12, type: 'triangle', volume: 0.18, delay: 0.12 },
+            { frequency: 784, duration: 0.16, type: 'sine', volume: 0.16, delay: 0.24 }
+        ]),
+        rock: createSequence([
+            { frequency: 180, duration: 0.18, type: 'square', volume: 0.16 },
+            { frequency: 220, duration: 0.12, type: 'triangle', volume: 0.12, delay: 0.18 }
+        ]),
+        ice: createSequence([
+            { frequency: 820, duration: 0.16, type: 'triangle', volume: 0.18 },
+            { frequency: 880, duration: 0.12, type: 'sine', volume: 0.16, delay: 0.14 }
+        ]),
+        grass: createSequence([
+            { frequency: 440, duration: 0.16, type: 'triangle', volume: 0.18 },
+            { frequency: 520, duration: 0.12, type: 'sine', volume: 0.16, delay: 0.14 }
+        ]),
+        poison: createSequence([
+            { frequency: 620, duration: 0.16, type: 'sawtooth', volume: 0.18 },
+            { frequency: 550, duration: 0.12, type: 'triangle', volume: 0.14, delay: 0.14 }
+        ]),
+        fighting: createSequence([
+            { frequency: 320, duration: 0.08, type: 'square', volume: 0.2 },
+            { frequency: 280, duration: 0.08, type: 'square', volume: 0.18, delay: 0.08 }
+        ]),
+        dragon: createSequence([
+            { frequency: 620, duration: 0.12, type: 'sine', volume: 0.18 },
+            { frequency: 740, duration: 0.12, type: 'triangle', volume: 0.16, delay: 0.12 }
+        ]),
+        ghost: createSequence([
+            { frequency: 260, duration: 0.18, type: 'sine', volume: 0.16 },
+            { frequency: 200, duration: 0.14, type: 'triangle', volume: 0.14, delay: 0.18 }
+        ]),
+        click: createTone({ frequency: 1400, duration: 0.05, type: 'square', volume: 0.22 })
+    };
+
+    function playSound(sound) {
+        if (!sound || muted) {
+            return;
+        }
+
+        if (typeof sound.play === 'function') {
+            sound.play();
+        }
+    }
+
+    const typeSymbols = {
+        normal: '🔰',
+        fire: '🔥',
+        water: '💧',
+        grass: '🍃',
+        electric: '⚡',
+        ice: '❄️',
+        psychic: '🔮',
+        rock: '🪨',
+        ghost: '👻',
+        dragon: '🐉',
+        poison: '☠️',
+        fighting: '🥊',
+        heal: '❤️',
+        buff: '🛡️',
+        status: '✨'
+    };
+
+    function getMoveIcon(move) {
+        return typeSymbols[move.type] || '✨';
+    }
+
+    function getMoveCooldown(move) {
+        if (move.cooldown !== undefined) return move.cooldown;
+        if (move.type === 'heal') return 2;
+        if (move.type === 'drain') return 3;
+        if (move.type === 'status' || move.type === 'buff') return 2;
+        if (move.power >= 100) return 4;
+        if (move.power >= 70) return 3;
+        if (move.power >= 50) return 2;
+        return 1;
+    }
+
+    function formatMoveButton(move) {
+        const icon = getMoveIcon(move);
+        const powerText = move.type === 'heal' ? `Recover ${move.amount || 0}` : move.type === 'drain' ? `Drain ${move.power}` : move.power ? `Pow ${move.power}` : (move.type === 'status' ? 'Status' : 'Buff');
+        const cooldownText = move.currentCooldown > 0 ? `CD ${move.currentCooldown}` : `CD ${move.cooldown}`;
+        return `<span>${icon} ${move.name}</span><small>${powerText} | ${cooldownText}</small>`;
+    }
+
+    function resetCooldowns(pokemon) {
+        if (!pokemon || !pokemon.moves) return;
+        pokemon.moves.forEach(move => {
+            move.cooldown = move.cooldown ?? getMoveCooldown(move);
+            move.currentCooldown = 0;
+        });
+    }
+
+    function ensureSixMoves(pokemon) {
+        if (!pokemon || !pokemon.moves) return;
+        while (pokemon.moves.length < 6) {
+            if (!pokemon.moves.some(m => m.name === 'Suck')) {
+                pokemon.moves.push({ name: 'Suck', power: 35, type: 'drain', cooldown: 3 });
+            } else {
+                pokemon.moves.push({ name: 'Armor Up', power: 0, type: 'buff', stat: 'defense', change: 2, target: 'self', cooldown: 3 });
+            }
+        }
+    }
+
+    function decrementCooldowns(pokemon) {
+        if (!pokemon || !pokemon.moves) return;
+        pokemon.moves.forEach(move => {
+            if (move.currentCooldown > 0) {
+                move.currentCooldown = Math.max(0, move.currentCooldown - 1);
+            }
+        });
+    }
+
+    function getMoveSound(move) {
+        const name = move.name.toLowerCase();
+        const type = move.type;
+
+        if (type === 'drain') return sounds.poison;
+        if (name.includes('thunder') || type === 'electric') return sounds.thunder;
+        if (type === 'fire') return sounds.fire;
+        if (type === 'water') return sounds.water;
+        if (type === 'ice') return sounds.ice;
+        if (type === 'psychic') return sounds.psychic;
+        if (type === 'rock') return sounds.rock;
+        if (type === 'ghost') return sounds.ghost;
+        if (type === 'dragon') return sounds.dragon;
+        if (type === 'poison') return sounds.poison;
+        if (type === 'grass') return sounds.grass;
+        if (type === 'fighting') return sounds.fighting;
+        return sounds.attack;
+    }
+
+    // Game Data Definitions
+    const gyms = {
+        fire: {
+            leaderName: "Blaine",
+            options: [
+                { name: 'Arcanine', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/59.png', maxHp: 135, hp: 135, attack: 22, defense: 12, moves: [{ name: 'Flamethrower', power: 75, type: 'fire' }, { name: 'Bite', power: 50, type: 'normal' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Charizard', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/6.png', maxHp: 120, hp: 120, attack: 24, defense: 10, moves: [{ name: 'Flamethrower', power: 75, type: 'fire' }, { name: 'Slash', power: 55, type: 'normal' }, { name: 'Growl', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Ninetales', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/38.png', maxHp: 110, hp: 110, attack: 20, defense: 14, moves: [{ name: 'Flamethrower', power: 75, type: 'fire' }, { name: 'Quick Attack', power: 40, type: 'normal' }, { name: 'Tail Whip', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        water: {
+            leaderName: "Misty",
+            options: [
+                { name: 'Starmie', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/121.png', maxHp: 105, hp: 105, attack: 20, defense: 14, moves: [{ name: 'Surf', power: 75, type: 'water' }, { name: 'Swift', power: 50, type: 'normal' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }, { name: 'Growl', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }] },
+                { name: 'Blastoise', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/9.png', maxHp: 130, hp: 130, attack: 18, defense: 18, moves: [{ name: 'Surf', power: 75, type: 'water' }, { name: 'Bite', power: 50, type: 'normal' }, { name: 'Tail Whip', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Gyarados', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/130.png', maxHp: 140, hp: 140, attack: 24, defense: 12, moves: [{ name: 'Surf', power: 75, type: 'water' }, { name: 'Tackle', power: 45, type: 'normal' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        grass: {
+            leaderName: "Erika",
+            options: [
+                { name: 'Vileplume', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/45.png', maxHp: 120, hp: 120, attack: 16, defense: 16, moves: [{ name: 'Giga Drain', power: 75, type: 'grass' }, { name: 'Acid', power: 45, type: 'normal' }, { name: 'Stun Spore', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Venusaur', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/3.png', maxHp: 135, hp: 135, attack: 18, defense: 18, moves: [{ name: 'Giga Drain', power: 75, type: 'grass' }, { name: 'Tackle', power: 40, type: 'normal' }, { name: 'Growl', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Exeggutor', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/103.png', maxHp: 145, hp: 145, attack: 22, defense: 12, moves: [{ name: 'Giga Drain', power: 75, type: 'grass' }, { name: 'Confusion', power: 50, type: 'psychic' }, { name: 'Reflect', power: 0, type: 'buff', stat: 'defense', change: 2, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        electric: {
+            leaderName: "Lt. Surge",
+            options: [
+                { name: 'Raichu', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/26.png', maxHp: 115, hp: 115, attack: 18, defense: 10, moves: [{ name: 'Thunderbolt', power: 75, type: 'electric' }, { name: 'Quick Attack', power: 45, type: 'normal' }, { name: 'Growl', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Jolteon', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/135.png', maxHp: 105, hp: 105, attack: 22, defense: 10, moves: [{ name: 'Thunderbolt', power: 75, type: 'electric' }, { name: 'Quick Attack', power: 45, type: 'normal' }, { name: 'Tail Whip', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Electabuzz', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/125.png', maxHp: 120, hp: 120, attack: 20, defense: 12, moves: [{ name: 'Thunderbolt', power: 75, type: 'electric' }, { name: 'Swift', power: 50, type: 'normal' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        rock: {
+            leaderName: "Brock",
+            options: [
+                { name: 'Golem', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/76.png', maxHp: 150, hp: 150, attack: 18, defense: 24, moves: [{ name: 'Rock Slide', power: 75, type: 'rock' }, { name: 'Tackle', power: 40, type: 'normal' }, { name: 'Defense Curl', power: 0, type: 'buff', stat: 'defense', change: 1, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Onix', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/95.png', maxHp: 120, hp: 120, attack: 14, defense: 28, moves: [{ name: 'Rock Slide', power: 75, type: 'rock' }, { name: 'Slam', power: 50, type: 'normal' }, { name: 'Screech', power: 0, type: 'status', stat: 'defense', change: -2, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Aerodactyl', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/142.png', maxHp: 130, hp: 130, attack: 22, defense: 12, moves: [{ name: 'Rock Slide', power: 75, type: 'rock' }, { name: 'Wing Attack', power: 60, type: 'normal' }, { name: 'Supersonic', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        psychic: {
+            leaderName: "Sabrina",
+            options: [
+                { name: 'Alakazam', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/65.png', maxHp: 90, hp: 90, attack: 24, defense: 8, moves: [{ name: 'Confusion', power: 50, type: 'psychic' }, { name: 'Psychic', power: 90, type: 'psychic' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }, { name: 'Reflect', power: 0, type: 'buff', stat: 'defense', change: 2, target: 'self' }] },
+                { name: 'Hypno', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/97.png', maxHp: 135, hp: 135, attack: 18, defense: 14, moves: [{ name: 'Confusion', power: 50, type: 'psychic' }, { name: 'Psychic', power: 90, type: 'psychic' }, { name: 'Headbutt', power: 55, type: 'normal' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Slowbro', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/80.png', maxHp: 145, hp: 145, attack: 20, defense: 20, moves: [{ name: 'Confusion', power: 50, type: 'psychic' }, { name: 'Surf', power: 75, type: 'water' }, { name: 'Amnesia', power: 0, type: 'buff', stat: 'defense', change: 2, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        ghost: {
+            leaderName: "Morty",
+            options: [
+                { name: 'Gengar', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/94.png', maxHp: 105, hp: 105, attack: 22, defense: 10, moves: [{ name: 'Lick', power: 45, type: 'ghost' }, { name: 'Shadow Ball', power: 80, type: 'ghost' }, { name: 'Spite', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Misdreavus', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/200.png', maxHp: 110, hp: 110, attack: 18, defense: 12, moves: [{ name: 'Shadow Ball', power: 80, type: 'ghost' }, { name: 'Psybeam', power: 65, type: 'psychic' }, { name: 'Growl', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Dusclops', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/356.png', maxHp: 100, hp: 100, attack: 16, defense: 24, moves: [{ name: 'Shadow Punch', power: 60, type: 'ghost' }, { name: 'Shadow Ball', power: 80, type: 'ghost' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        dragon: {
+            leaderName: "Clair",
+            options: [
+                { name: 'Dragonite', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/149.png', maxHp: 145, hp: 145, attack: 24, defense: 18, moves: [{ name: 'Dragon Claw', power: 80, type: 'dragon' }, { name: 'Slam', power: 65, type: 'normal' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Kingdra', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/230.png', maxHp: 135, hp: 135, attack: 20, defense: 18, moves: [{ name: 'Dragonbreath', power: 60, type: 'dragon' }, { name: 'Surf', power: 75, type: 'water' }, { name: 'Smokescreen', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Salamence', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/373.png', maxHp: 145, hp: 145, attack: 26, defense: 14, moves: [{ name: 'Dragon Claw', power: 80, type: 'dragon' }, { name: 'Headbutt', power: 60, type: 'normal' }, { name: 'Scary Face', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        normal: {
+            leaderName: "Whitney",
+            options: [
+                { name: 'Miltank', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/241.png', maxHp: 155, hp: 155, attack: 18, defense: 20, moves: [{ name: 'Stomp', power: 65, type: 'normal' }, { name: 'Rollout', power: 45, type: 'rock' }, { name: 'Milk Drink', power: 0, type: 'heal', amount: 80 }, { name: 'Defense Curl', power: 0, type: 'buff', stat: 'defense', change: 1, target: 'self' }] },
+                { name: 'Porygon', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/137.png', maxHp: 125, hp: 125, attack: 16, defense: 14, moves: [{ name: 'Tri Attack', power: 80, type: 'normal' }, { name: 'Psybeam', power: 65, type: 'psychic' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }, { name: 'Sharpen', power: 0, type: 'buff', stat: 'attack', change: 1, target: 'self' }] },
+                { name: 'Snorlax', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/143.png', maxHp: 200, hp: 200, attack: 22, defense: 16, moves: [{ name: 'Body Slam', power: 85, type: 'normal' }, { name: 'Headbutt', power: 70, type: 'normal' }, { name: 'Rest', power: 0, type: 'heal', amount: 100 }, { name: 'Amnesia', power: 0, type: 'buff', stat: 'defense', change: 2, target: 'self' }] }
+            ]
+        },
+        fighting: {
+            leaderName: "Chuck",
+            options: [
+                { name: 'Machamp', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/68.png', maxHp: 150, hp: 150, attack: 26, defense: 16, moves: [{ name: 'Cross Chop', power: 100, type: 'fighting' }, { name: 'Karate Chop', power: 50, type: 'fighting' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Hitmonlee', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/106.png', maxHp: 110, hp: 110, attack: 24, defense: 10, moves: [{ name: 'High Jump Kick', power: 130, type: 'fighting' }, { name: 'Double Kick', power: 60, type: 'fighting' }, { name: 'Meditate', power: 0, type: 'buff', stat: 'attack', change: 1, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Lucario', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/448.png', maxHp: 130, hp: 130, attack: 22, defense: 14, moves: [{ name: 'Aura Sphere', power: 80, type: 'fighting' }, { name: 'Bone Rush', power: 75, type: 'ground' }, { name: 'Swords Dance', power: 0, type: 'buff', stat: 'attack', change: 2, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        flying: {
+            leaderName: "Falkner",
+            options: [
+                { name: 'Pidgeot', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/18.png', maxHp: 140, hp: 140, attack: 18, defense: 14, moves: [{ name: 'Wing Attack', power: 60, type: 'flying' }, { name: 'Quick Attack', power: 40, type: 'normal' }, { name: 'Feather Dance', power: 0, type: 'status', stat: 'attack', change: -2, target: 'enemy' }, { name: 'Roost', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Staraptor', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/398.png', maxHp: 145, hp: 145, attack: 24, defense: 14, moves: [{ name: 'Brave Bird', power: 120, type: 'flying' }, { name: 'Close Combat', power: 120, type: 'fighting' }, { name: 'Growl', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Roost', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Crobat', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/169.png', maxHp: 145, hp: 145, attack: 18, defense: 16, moves: [{ name: 'Air Slash', power: 75, type: 'flying' }, { name: 'Bite', power: 60, type: 'dark' }, { name: 'Screech', power: 0, type: 'status', stat: 'defense', change: -2, target: 'enemy' }, { name: 'Roost', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        poison: {
+            leaderName: "Koga",
+            options: [
+                { name: 'Arbok', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/24.png', maxHp: 120, hp: 120, attack: 18, defense: 14, moves: [{ name: 'Sludge Bomb', power: 90, type: 'poison' }, { name: 'Bite', power: 60, type: 'dark' }, { name: 'Glare', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Weezing', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/110.png', maxHp: 125, hp: 125, attack: 18, defense: 24, moves: [{ name: 'Sludge Bomb', power: 90, type: 'poison' }, { name: 'Tackle', power: 40, type: 'normal' }, { name: 'Smokescreen', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Nidoking', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/34.png', maxHp: 140, hp: 140, attack: 20, defense: 16, moves: [{ name: 'Sludge Bomb', power: 90, type: 'poison' }, { name: 'Earthquake', power: 100, type: 'ground' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        ground: {
+            leaderName: "Giovanni",
+            options: [
+                { name: 'Rhydon', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/112.png', maxHp: 165, hp: 165, attack: 26, defense: 24, moves: [{ name: 'Earthquake', power: 100, type: 'ground' }, { name: 'Rock Slide', power: 75, type: 'rock' }, { name: 'Tail Whip', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Dugtrio', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/51.png', maxHp: 95, hp: 95, attack: 18, defense: 10, moves: [{ name: 'Earthquake', power: 100, type: 'ground' }, { name: 'Slash', power: 70, type: 'normal' }, { name: 'Growl', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Garchomp', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/445.png', maxHp: 168, hp: 168, attack: 26, defense: 18, moves: [{ name: 'Earthquake', power: 100, type: 'ground' }, { name: 'Dragon Claw', power: 80, type: 'dragon' }, { name: 'Swords Dance', power: 0, type: 'buff', stat: 'attack', change: 2, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        bug: {
+            leaderName: "Bugsy",
+            options: [
+                { name: 'Scyther', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/123.png', maxHp: 130, hp: 130, attack: 22, defense: 16, moves: [{ name: 'X-Scissor', power: 80, type: 'bug' }, { name: 'Wing Attack', power: 60, type: 'flying' }, { name: 'Swords Dance', power: 0, type: 'buff', stat: 'attack', change: 2, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Heracross', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/214.png', maxHp: 140, hp: 140, attack: 24, defense: 14, moves: [{ name: 'Megahorn', power: 120, type: 'bug' }, { name: 'Brick Break', power: 75, type: 'fighting' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Volcarona', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/637.png', maxHp: 145, hp: 145, attack: 24, defense: 12, moves: [{ name: 'Bug Buzz', power: 90, type: 'bug' }, { name: 'Flamethrower', power: 90, type: 'fire' }, { name: 'Quiver Dance', power: 0, type: 'buff', stat: 'attack', change: 1, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        steel: {
+            leaderName: "Jasmine",
+            options: [
+                { name: 'Steelix', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/208.png', maxHp: 135, hp: 135, attack: 18, defense: 30, moves: [{ name: 'Iron Tail', power: 100, type: 'steel' }, { name: 'Earthquake', power: 100, type: 'ground' }, { name: 'Screech', power: 0, type: 'status', stat: 'defense', change: -2, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Metagross', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/376.png', maxHp: 140, hp: 140, attack: 26, defense: 22, moves: [{ name: 'Meteor Mash', power: 90, type: 'steel' }, { name: 'Zen Headbutt', power: 80, type: 'psychic' }, { name: 'Agility', power: 0, type: 'buff', stat: 'defense', change: 1, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Scizor', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/212.png', maxHp: 130, hp: 130, attack: 26, defense: 20, moves: [{ name: 'Iron Head', power: 80, type: 'steel' }, { name: 'X-Scissor', power: 80, type: 'bug' }, { name: 'Swords Dance', power: 0, type: 'buff', stat: 'attack', change: 2, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        ice: {
+            leaderName: "Pryce",
+            options: [
+                { name: 'Lapras', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/131.png', maxHp: 190, hp: 190, attack: 18, defense: 16, moves: [{ name: 'Ice Beam', power: 90, type: 'ice' }, { name: 'Surf', power: 90, type: 'water' }, { name: 'Sing', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Glalie', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/362.png', maxHp: 140, hp: 140, attack: 18, defense: 18, moves: [{ name: 'Ice Beam', power: 90, type: 'ice' }, { name: 'Headbutt', power: 70, type: 'normal' }, { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Weavile', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/461.png', maxHp: 130, hp: 130, attack: 24, defense: 12, moves: [{ name: 'Ice Punch', power: 75, type: 'ice' }, { name: 'Night Slash', power: 70, type: 'dark' }, { name: 'Swords Dance', power: 0, type: 'buff', stat: 'attack', change: 2, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        dark: {
+            leaderName: "Karen",
+            options: [
+                { name: 'Umbreon', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/197.png', maxHp: 155, hp: 155, attack: 14, defense: 22, moves: [{ name: 'Dark Pulse', power: 80, type: 'dark' }, { name: 'Quick Attack', power: 40, type: 'normal' }, { name: 'Moonlight', power: 0, type: 'heal', amount: 80 }, { name: 'Tail Whip', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' }] },
+                { name: 'Houndoom', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/229.png', maxHp: 135, hp: 135, attack: 20, defense: 14, moves: [{ name: 'Dark Pulse', power: 80, type: 'dark' }, { name: 'Flamethrower', power: 90, type: 'fire' }, { name: 'Howl', power: 0, type: 'buff', stat: 'attack', change: 1, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] },
+                { name: 'Tyranitar', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/248.png', maxHp: 160, hp: 160, attack: 26, defense: 22, moves: [{ name: 'Crunch', power: 80, type: 'dark' }, { name: 'Rock Slide', power: 75, type: 'rock' }, { name: 'Screech', power: 0, type: 'status', stat: 'defense', change: -2, target: 'enemy' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        },
+        fairy: {
+            leaderName: "Valerie",
+            options: [
+                { name: 'Clefable', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/36.png', maxHp: 155, hp: 155, attack: 14, defense: 14, moves: [{ name: 'Moonblast', power: 95, type: 'fairy' }, { name: 'Pound', power: 40, type: 'normal' }, { name: 'Moonlight', power: 0, type: 'heal', amount: 80 }, { name: 'Charm', power: 0, type: 'status', stat: 'attack', change: -2, target: 'enemy' }] },
+                { name: 'Togekiss', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/468.png', maxHp: 145, hp: 145, attack: 20, defense: 18, moves: [{ name: 'Dazzling Gleam', power: 80, type: 'fairy' }, { name: 'Air Slash', power: 75, type: 'flying' }, { name: 'Roost', power: 0, type: 'heal', amount: 80 }, { name: 'Growl', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }] },
+                { name: 'Sylveon', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/700.png', maxHp: 155, hp: 155, attack: 20, defense: 14, moves: [{ name: 'Moonblast', power: 95, type: 'fairy' }, { name: 'Quick Attack', power: 40, type: 'normal' }, { name: 'Calm Mind', power: 0, type: 'buff', stat: 'attack', change: 1, target: 'self' }, { name: 'Recover', power: 0, type: 'heal', amount: 50 }] }
+            ]
+        }
+    };
+
+    const enemyTemplate = {
+        name: 'Snorlax', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/143.png', maxHp: 200, hp: 200, attack: 18, defense: 16,
+        moves: [
+            { name: 'Body Slam', power: 65, type: 'normal' },
+            { name: 'Headbutt', power: 55, type: 'normal' },
+            { name: 'Rest', power: 0, type: 'heal', amount: 80 },
+            { name: 'Hyper Beam', power: 110, type: 'normal' }
+        ]
+    };
+
+    // State Variables
+    let player, enemy, currentLeaderName;
+    let selectedGymType = '';
+
+    // UI Elements
+    const elements = {
+        msg: document.getElementById('message-box'),
+        btns: [
+            document.getElementById('btn-0'),
+            document.getElementById('btn-1'),
+            document.getElementById('btn-2'),
+            document.getElementById('btn-3'),
+            document.getElementById('btn-4'),
+            document.getElementById('btn-5')
+        ],
+        pHpFill: document.getElementById('player-hp-fill'),
+        pDefFill: document.getElementById('player-def-fill'),
+        pStaminaFill: document.getElementById('player-stamina-fill'),
+        eDefFill: document.getElementById('enemy-def-fill'),
+        eStaminaFill: document.getElementById('enemy-stamina-fill'),
+        pHpText: document.getElementById('player-hp-text'),
+        eHpFill: document.getElementById('enemy-hp-fill'),
+        eHpText: document.getElementById('enemy-hp-text')
+    };
+
+    let muted = false;
+
+    document.getElementById('muteBtn').onclick = () => {
+        muted = !muted;
+        document.getElementById('muteBtn').innerText =
+            muted ? '🔇 Unmute' : '🔊 Mute';
+    };
+
+    function testSound() {
+        resumeAudioContext();
+        playSound(sounds.click);
+        setTimeout(() => playSound(sounds.attack), 120);
+        setTimeout(() => playSound(sounds.hit), 240);
+    }
+
+    function copyPlayLink() {
+        const url = window.location.href;
+        const status = document.getElementById('link-status');
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url)
+                .then(() => {
+                    status.innerText = 'Link copied! Paste it on your phone browser.';
+                })
+                .catch(() => {
+                    status.innerText = 'Copy failed. Please copy the URL manually.';
+                    window.prompt('Copy this link to your phone:', url);
+                });
+        } else {
+            status.innerText = 'Copy not supported. Use the URL below.';
+            window.prompt('Copy this link to your phone:', url);
+        }
+    }
+
+    function showTypeSelection() {
+        resumeAudioContext();
+        playSound(sounds.click);
+        playSound(sounds.bgm);
+
+        document.getElementById('intro-screen').style.display = 'none';
+        document.getElementById('selection-screen').style.display = 'flex';
+    }
+
+    function showPokemonSelection(type) {
+        playSound(sounds.click);
+        selectedGymType = type;
+        document.getElementById('selection-screen').style.display = 'none';
+        document.getElementById('pokemon-selection-screen').style.display = 'flex';
+        
+        const grid = document.getElementById('pokemon-grid');
+        grid.innerHTML = '';
+        
+        const options = gyms[type].options;
+        options.forEach((poke, index) => {
+            const card = document.createElement('div');
+            card.className = 'pokemon-card';
+            card.onclick = () => startBattle(index);
+            card.innerHTML = `
+                <img src="${poke.sprite}" alt="${poke.name}">
+                <h3>${poke.name}</h3>
+                <p style="font-size: 0.8em; margin-top: 10px;">HP: ${poke.maxHp} | ATK: ${poke.attack}</p>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function startBattle(pokemonIndex) {
+        initOverworld(pokemonIndex);
+    }
+
+    let globalPlayerPokemonIndex = 0;
+    let currentOpponentNPC = null;
+
+    // Overworld Variables
+    const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
+    const owPlayer = { x: 400, y: 500, size: 30, speed: 4, color: '#f1c40f' };
+    
+    const enemyTemplate2 = {
+        name: 'Machamp', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/68.png', maxHp: 180, hp: 180, attack: 24, defense: 14,
+        moves: [
+            { name: 'Karate Chop', power: 50, type: 'normal' },
+            { name: 'Submission', power: 80, type: 'normal' },
+            { name: 'Leer', power: 0, type: 'status', stat: 'defense', change: -1, target: 'enemy' },
+            { name: 'Focus Energy', power: 0, type: 'buff', stat: 'attack', change: 2, target: 'self' }
+        ]
+    };
+
+    const enemyTemplate3 = {
+        name: 'Gyarados', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/130.png', maxHp: 140, hp: 140, attack: 24, defense: 12,
+        moves: [
+            { name: 'Surf', power: 75, type: 'water' },
+            { name: 'Crunch', power: 80, type: 'dark' },
+            { name: 'Rain Dance', power: 0, type: 'status', stat: 'defense', change: 1, target: 'self' },
+            { name: 'Recover', power: 0, type: 'heal', amount: 60 }
+        ]
+    };
+
+    const enemyTemplate4 = {
+        name: 'Gengar', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/94.png', maxHp: 105, hp: 105, attack: 22, defense: 10,
+        moves: [
+            { name: 'Shadow Ball', power: 80, type: 'ghost' },
+            { name: 'Sludge Bomb', power: 90, type: 'poison' },
+            { name: 'Hypnosis', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' },
+            { name: 'Confuse Ray', power: 0, type: 'status', stat: 'attack', change: -1, target: 'enemy' }
+        ]
+    };
+
+    const enemyTemplate5 = {
+        name: 'Dragonite', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/149.png', maxHp: 145, hp: 145, attack: 24, defense: 18,
+        moves: [
+            { name: 'Dragon Claw', power: 80, type: 'dragon' },
+            { name: 'Wing Attack', power: 60, type: 'flying' },
+            { name: 'Roost', power: 0, type: 'heal', amount: 60 },
+            { name: 'Thunder Punch', power: 75, type: 'electric' }
+        ]
+    };
+
+    const owNPCs = [
+        { x: 385, y: 150, size: 30, color: '#e74c3c', name: 'Red', defeated: false, template: enemyTemplate },
+        { x: 200, y: 300, size: 30, color: '#9b59b6', name: 'Gary', defeated: false, template: enemyTemplate2 },
+        { x: 120, y: 420, size: 30, color: '#1abc9c', name: 'Iris', defeated: false, template: enemyTemplate3 },
+        { x: 550, y: 360, size: 30, color: '#f39c12', name: 'Chun', defeated: false, template: enemyTemplate4 },
+        { x: 700, y: 220, size: 30, color: '#3498db', name: 'Lance', defeated: false, template: enemyTemplate5 }
+    ];
+
+    window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
+    window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+
+    function initOverworld(pokemonIndex) {
+        globalPlayerPokemonIndex = pokemonIndex;
+        document.getElementById('pokemon-selection-screen').style.display = 'none';
+        document.getElementById('overworld-screen').style.display = 'flex';
+        
+        currentLeaderName = gyms[selectedGymType].leaderName;
+        requestAnimationFrame(gameLoop);
+    }
+
+    function gameLoop() {
+        if (document.getElementById('overworld-screen').style.display !== 'flex') return;
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Movement
+        if (keys.w || keys.ArrowUp) owPlayer.y -= owPlayer.speed;
+        if (keys.s || keys.ArrowDown) owPlayer.y += owPlayer.speed;
+        if (keys.a || keys.ArrowLeft) owPlayer.x -= owPlayer.speed;
+        if (keys.d || keys.ArrowRight) owPlayer.x += owPlayer.speed;
+
+        // Canvas bounds
+        owPlayer.x = Math.max(0, Math.min(canvas.width - owPlayer.size, owPlayer.x));
+        owPlayer.y = Math.max(0, Math.min(canvas.height - owPlayer.size, owPlayer.y));
+
+        // Draw Background
+        ctx.fillStyle = '#27ae60';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw Gym Elements (simple decorative tiles)
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(100, 100, 600, 400); // inner arena
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(100, 100, 600, 400);
+
+        // Check Collisions & Draw NPCs
+        let interactingNPC = null;
+        for (let npc of owNPCs) {
+            if (npc.defeated) {
+                ctx.globalAlpha = 0.3; // ghost them out
+            }
+            ctx.fillStyle = npc.color;
+            ctx.fillRect(npc.x, npc.y, npc.size, npc.size);
+            ctx.globalAlpha = 1.0;
+            
+            // Basic AABB Collision
+            if (!npc.defeated && 
+                owPlayer.x < npc.x + npc.size &&
+                owPlayer.x + owPlayer.size > npc.x &&
+                owPlayer.y < npc.y + npc.size &&
+                owPlayer.y + owPlayer.size > npc.y) {
+                interactingNPC = npc;
+            }
+        }
+
+        // Draw Player
+        ctx.fillStyle = owPlayer.color;
+        ctx.fillRect(owPlayer.x, owPlayer.y, owPlayer.size, owPlayer.size);
+        
+        if (interactingNPC) {
+            triggerBattle(interactingNPC);
+        } else {
+            requestAnimationFrame(gameLoop);
+        }
+    }
+
+    function triggerBattle(npc) {
+        currentOpponentNPC = npc;
+        document.getElementById('overworld-screen').style.display = 'none';
+        document.getElementById('battle-container').style.display = 'flex';
+        
+        player = JSON.parse(JSON.stringify(gyms[selectedGymType].options[globalPlayerPokemonIndex]));
+        enemy = JSON.parse(JSON.stringify(npc.template));
+        
+        // Initialize stamina (100% of max HP)
+        player.maxStamina = player.maxHp;
+        player.stamina = player.maxStamina;
+        player.maxDefense = player.defense;
+        
+        enemy.maxStamina = enemy.maxHp;
+        enemy.stamina = enemy.maxStamina;
+        enemy.maxDefense = enemy.defense;
+        
+        // Setup Visuals
+        document.getElementById('player-name').innerText = player.name;
+        document.getElementById('player-sprite').innerHTML = `<img src="${player.sprite}">`;
+        document.getElementById('enemy-name').innerText = enemy.name;
+        document.getElementById('enemy-sprite').innerHTML = `<img src="${enemy.sprite}">`;
+        
+        ensureSixMoves(player);
+        ensureSixMoves(enemy);
+        resetCooldowns(player);
+        resetCooldowns(enemy);
+        for(let i=0; i<6; i++) {
+            let move = player.moves[i];
+            if (move) {
+                elements.btns[i].innerHTML = formatMoveButton(move);
+                elements.btns[i].className = 'type-' + move.type;
+                elements.btns[i].disabled = false;
+                elements.btns[i].style.opacity = '1';
+            } else {
+                elements.btns[i].innerHTML = '';
+                elements.btns[i].className = '';
+                elements.btns[i].disabled = true;
+                elements.btns[i].style.opacity = '0.5';
+            }
+        }
+        
+        updateUI();
+        elements.msg.innerHTML = `Challenger ${npc.name} sent out ${enemy.name}!<br>Defend your gym, Leader ${currentLeaderName}!`;
+        setButtonsDisabled(false);
+    }
+
+    function updateUI() {
+        let pPercent = (player.hp / player.maxHp) * 100;
+        elements.pHpFill.style.width = pPercent + '%';
+        elements.pHpFill.style.backgroundColor = pPercent > 50 ? '#2ecc71' : pPercent > 20 ? '#f1c40f' : '#e74c3c';
+        elements.pHpText.innerText = `${player.hp} / ${player.maxHp}`;
+
+        let ePercent = (enemy.hp / enemy.maxHp) * 100;
+        elements.eHpFill.style.width = ePercent + '%';
+        elements.eHpFill.style.backgroundColor = ePercent > 50 ? '#2ecc71' : ePercent > 20 ? '#f1c40f' : '#e74c3c';
+        elements.eHpText.innerText = `${enemy.hp} / ${enemy.maxHp}`;
+
+        // Player Defense Bar
+        let pDefPercent = (player.defense / player.maxDefense) * 100;
+        elements.pDefFill.style.width = pDefPercent + '%';
+        
+        // Player Stamina Bar
+        let pStaminaPercent = (player.stamina / player.maxStamina) * 100;
+        elements.pStaminaFill.style.width = pStaminaPercent + '%';
+        
+        // Enemy Defense Bar
+        let eDefPercent = (enemy.defense / enemy.maxDefense) * 100;
+        elements.eDefFill.style.width = eDefPercent + '%';
+        
+        // Enemy Stamina Bar
+        let eStaminaPercent = (enemy.stamina / enemy.maxStamina) * 100;
+        elements.eStaminaFill.style.width = eStaminaPercent + '%';
+
+        player.moves.slice(0, 6).forEach((move, index) => {
+            const button = elements.btns[index];
+            if (move) {
+                button.innerHTML = formatMoveButton(move);
+                button.className = 'type-' + move.type;
+                if (move.currentCooldown > 0) {
+                    button.disabled = true;
+                    button.style.opacity = '0.6';
+                } else {
+                    button.disabled = false;
+                    button.style.opacity = '1';
+                }
+            } else {
+                button.innerHTML = '';
+                button.className = '';
+                button.disabled = true;
+                button.style.opacity = '0.5';
+            }
+        });
+    }
+
+    function setButtonsDisabled(disabled) {
+        if (disabled) {
+            elements.btns.forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+            });
+        } else {
+            updateUI();
+        }
+    }
+
+    async function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function showAttackIndicator(isPlayer, moveName) {
+        const indicator = document.getElementById(isPlayer ? 'player-indicator' : 'enemy-indicator');
+        indicator.innerText = moveName;
+        indicator.classList.add('show-move');
+        setTimeout(() => {
+            indicator.classList.remove('show-move');
+        }, 1200);
+    }
+
+    async function playAttackAnimation(isPlayer) {
+        playSound(sounds.attack);
+
+        const spriteBox = document.getElementById(isPlayer ? 'player-box' : 'enemy-box');
+        spriteBox.classList.add(isPlayer ? 'anim-attack-player' : 'anim-attack-enemy');
+        await sleep(300);
+        spriteBox.classList.remove(isPlayer ? 'anim-attack-player' : 'anim-attack-enemy');
+    }
+
+    async function playDamageAnimation(isPlayer) {
+        playSound(sounds.hit);
+        const spriteBox = document.getElementById(isPlayer ? 'player-box' : 'enemy-box');
+        spriteBox.classList.add('anim-damage');
+        await sleep(400);
+        spriteBox.classList.remove('anim-damage');
+    }
+
+    function calculateDamage(attacker, defender, move) {
+        if(move.power === 0) return 0;
+        
+        let typeEffectiveness = 1;
+        // Basic type matchups vs Snorlax (Normal)
+        if (move.type === 'ghost') {
+            if (defender.name === 'Snorlax') typeEffectiveness = 0; // Normal immune to ghost
+        }
+        
+        // Snorlax attacking
+        if (move.type === 'normal') {
+            if (defender.name === 'Golem') typeEffectiveness = 0.5; // Rock resists normal
+            if (defender.name === 'Gengar') typeEffectiveness = 0; // Ghost immune to normal
+        }
+        
+        // Stamina multiplier: if stamina is low, reduce damage
+        let staminaMultiplier = 1;
+        let staminaPercent = (attacker.stamina / attacker.maxStamina) * 100;
+        if (staminaPercent < 30) {
+            staminaMultiplier = 0.5; // 50% damage reduction when stamina very low
+        } else if (staminaPercent < 60) {
+            staminaMultiplier = 0.75; // 25% damage reduction when stamina low
+        }
+        
+        let damage = Math.floor((((2 * 10 / 5 + 2) * move.power * (attacker.attack / defender.defense)) / 50 + 2) * typeEffectiveness * staminaMultiplier);
+        
+        // Add slight randomness (85% to 100%)
+        damage = Math.floor(damage * (Math.floor(Math.random() * 16) + 85) / 100);
+        return { damage: Math.max(1, damage), effectiveness: typeEffectiveness };
+    }
+
+    async function useMove(moveIndex) {
+        setButtonsDisabled(true);
+        const move = player.moves[moveIndex];
+        if (move.currentCooldown > 0) {
+            elements.msg.innerHTML = `${move.name} is on cooldown for ${move.currentCooldown} more turn(s)!`;
+            setButtonsDisabled(false);
+            return;
+        }
+        move.currentCooldown = move.cooldown;
+        
+        elements.msg.innerHTML = `${player.name} used ${move.name}!`;
+        showAttackIndicator(true, move.name);
+        await playAttackAnimation(true);
+        await sleep(500);
+
+        if (move.type === 'heal') {
+            playSound(sounds.heal);
+            player.hp = Math.min(player.maxHp, player.hp + move.amount);
+            player.stamina = Math.min(player.maxStamina, player.stamina + 20); // Restore some stamina
+            elements.msg.innerHTML = `${player.name} recovered HP and Stamina!`;
+            updateUI();
+        } else if (move.type === 'drain') {
+            playSound(getMoveSound(move));
+            const hit = calculateDamage(player, enemy, move);
+            await playDamageAnimation(false);
+            playSound(sounds.hit);
+            enemy.hp = Math.max(0, enemy.hp - hit.damage);
+            const healAmount = Math.min(player.maxHp - player.hp, Math.max(1, Math.floor(hit.damage * 0.5) + 10));
+            player.hp = Math.min(player.maxHp, player.hp + healAmount);
+            enemy.defense = Math.max(1, enemy.defense - 2);
+            // Deplete stamina
+            player.stamina = Math.max(0, player.stamina - 25);
+            elements.msg.innerHTML = `${player.name} sucked HP and lowered ${enemy.name}'s defense!`;
+            updateUI();
+        } else if (move.type === 'status' && move.target === 'enemy') {
+            enemy[move.stat] = Math.max(1, enemy[move.stat] + move.change);
+            player.stamina = Math.max(0, player.stamina - 15); // Minor stamina cost
+            elements.msg.innerHTML = `${enemy.name}'s ${move.stat} ${move.change > 0 ? 'rose' : 'fell'}!`;
+        } else if (move.type === 'buff' && move.target === 'self') {
+            player[move.stat] = player[move.stat] + move.change;
+            player.stamina = Math.max(0, player.stamina - 15); // Minor stamina cost
+            elements.msg.innerHTML = `${player.name}'s ${move.stat} ${move.change > 0 ? 'rose' : 'fell'}!`;
+        } else {
+            playSound(getMoveSound(move));
+            const hit = calculateDamage(player, enemy, move);
+            await playDamageAnimation(false);
+            playSound(sounds.hit);
+            enemy.hp = Math.max(0, enemy.hp - hit.damage);
+            // Deplete stamina based on power
+            player.stamina = Math.max(0, player.stamina - Math.floor(move.power / 3));
+            updateUI();
+            
+            if (hit.effectiveness > 1) {
+                elements.msg.innerHTML = "It's super effective!";
+                await sleep(1500);
+            } else if (hit.effectiveness < 1) {
+                elements.msg.innerHTML = "It's not very effective...";
+                await sleep(1500);
+            }
+        }
+
+        await sleep(1500);
+
+        if (enemy.hp <= 0) {
+            playSound(sounds.victory);
+            elements.msg.innerHTML = `Good battle, better luck next time!`;
+            await sleep(3000);
+            if (currentOpponentNPC) currentOpponentNPC.defeated = true;
+            document.getElementById('battle-container').style.display = 'none';
+            document.getElementById('overworld-screen').style.display = 'flex';
+            owPlayer.y += 10; // Bounce away
+            requestAnimationFrame(gameLoop);
+            return;
+        }
+
+        await enemyTurn();
+    }
+
+    function switchPokemon() {
+        // Pause battle and show switch screen
+        const switchMsg = prompt(`Available Pokemon:\n0: ${gyms[selectedGymType].options[0].name}\n1: ${gyms[selectedGymType].options[1].name}\n2: ${gyms[selectedGymType].options[2].name}\n\nEnter number to switch (0-2):`, '0');
+        
+        if (switchMsg === null) return; // Cancelled
+        const newIndex = parseInt(switchMsg);
+        
+        if (isNaN(newIndex) || newIndex < 0 || newIndex > 2 || newIndex === globalPlayerPokemonIndex) {
+            elements.msg.innerHTML = `${player.name} is already out!`;
+            return;
+        }
+        
+        // Switch Pokemon
+        const oldName = player.name;
+        globalPlayerPokemonIndex = newIndex;
+        player = JSON.parse(JSON.stringify(gyms[selectedGymType].options[newIndex]));
+        
+        // Initialize stamina for new pokemon
+        player.maxStamina = player.maxHp;
+        player.stamina = player.maxStamina;
+        player.maxDefense = player.defense;
+        
+        ensureSixMoves(player);
+        resetCooldowns(player);
+        
+        for(let i=0; i<6; i++) {
+            let move = player.moves[i];
+            if (move) {
+                elements.btns[i].innerHTML = formatMoveButton(move);
+                elements.btns[i].className = 'type-' + move.type;
+                elements.btns[i].disabled = false;
+                elements.btns[i].style.opacity = '1';
+            } else {
+                elements.btns[i].innerHTML = '';
+                elements.btns[i].className = '';
+                elements.btns[i].disabled = true;
+                elements.btns[i].style.opacity = '0.5';
+            }
+        }
+        
+        document.getElementById('player-name').innerText = player.name;
+        document.getElementById('player-sprite').innerHTML = `<img src="${player.sprite}">`;
+        updateUI();
+        elements.msg.innerHTML = `${oldName} was switched out!<br>${player.name}, let's go!`;
+        setButtonsDisabled(false);
+    }
+
+    async function enemyTurn() {
+        const availableMoves = enemy.moves.filter(m => !m.currentCooldown || m.currentCooldown === 0);
+        const move = availableMoves.length ? availableMoves[Math.floor(Math.random() * availableMoves.length)] : enemy.moves[Math.floor(Math.random() * enemy.moves.length)];
+        if (move.currentCooldown === 0 || move.currentCooldown === undefined) {
+            move.currentCooldown = move.cooldown ?? getMoveCooldown(move);
+        }
+
+        elements.msg.innerHTML = `Challenger's ${enemy.name} used ${move.name}!`;
+        showAttackIndicator(false, move.name);
+        await playAttackAnimation(false);
+        await sleep(500);
+
+        if (move.type === 'heal') {
+            playSound(sounds.heal);
+            enemy.hp = Math.min(enemy.maxHp, enemy.hp + move.amount);
+            enemy.stamina = Math.min(enemy.maxStamina, enemy.stamina + 20); // Restore stamina with heal
+            elements.msg.innerHTML = `${enemy.name} recovered HP and Stamina!`;
+            updateUI();
+            await sleep(1500);
+        } else if (move.type === 'drain') {
+            playSound(getMoveSound(move));
+            const hit = calculateDamage(enemy, player, move);
+            await playDamageAnimation(true);
+            playSound(sounds.hit);
+            player.hp = Math.max(0, player.hp - hit.damage);
+            const healAmount = Math.min(enemy.maxHp - enemy.hp, Math.max(1, Math.floor(hit.damage * 0.5) + 10));
+            enemy.hp = Math.min(enemy.maxHp, enemy.hp + healAmount);
+            player.defense = Math.max(1, player.defense - 2);
+            // Deplete enemy stamina
+            enemy.stamina = Math.max(0, enemy.stamina - 25);
+            elements.msg.innerHTML = `${enemy.name} drained HP and weakened ${player.name}!`;
+            updateUI();
+            await sleep(1500);
+        } else if (move.type === 'status' && move.target === 'enemy') {
+            player[move.stat] = Math.max(1, player[move.stat] + move.change);
+            enemy.stamina = Math.max(0, enemy.stamina - 15);
+            elements.msg.innerHTML = `${player.name}'s ${move.stat} ${move.change > 0 ? 'rose' : 'fell'}!`;
+            await sleep(1500);
+        } else if (move.type === 'buff' && move.target === 'self') {
+            enemy[move.stat] = enemy[move.stat] + move.change;
+            enemy.stamina = Math.max(0, enemy.stamina - 15);
+            elements.msg.innerHTML = `${enemy.name}'s ${move.stat} ${move.change > 0 ? 'rose' : 'fell'}!`;
+            await sleep(1500);
+        } else {
+            playSound(getMoveSound(move));
+            const hit = calculateDamage(enemy, player, move);
+            await playDamageAnimation(true);
+            playSound(sounds.hit);
+            player.hp = Math.max(0, player.hp - hit.damage);
+            // Deplete enemy stamina
+            enemy.stamina = Math.max(0, enemy.stamina - Math.floor(move.power / 3));
+            updateUI();
+
+            if (hit.effectiveness > 1) {
+                elements.msg.innerHTML = "It's super effective!";
+                await sleep(1500);
+            } else if (hit.effectiveness < 1) {
+                elements.msg.innerHTML = "It's not very effective...";
+                await sleep(1500);
+            }
+        }
+
+        if (player.hp <= 0) {
+            playSound(sounds.defeat);
+            elements.msg.innerHTML = `You lost the battle!<br>You gave them the Gym Badge...`;
+            await sleep(3000);
+            document.getElementById('battle-container').style.display = 'none';
+            document.getElementById('overworld-screen').style.display = 'flex';
+            owPlayer.x = 400; // Reset position
+            owPlayer.y = 500;
+            requestAnimationFrame(gameLoop);
+            return;
+        }
+
+        await sleep(1000);
+        
+        // Restore some stamina after turn (natural recovery)
+        player.stamina = Math.min(player.maxStamina, player.stamina + 15);
+        enemy.stamina = Math.min(enemy.maxStamina, enemy.stamina + 15);
+        
+        decrementCooldowns(player);
+        decrementCooldowns(enemy);
+        updateUI();
+        elements.msg.innerHTML = `What will ${player.name} do?`;
+        setButtonsDisabled(false);
+    }
+</script>
+</body>
+</html>
