@@ -1179,7 +1179,7 @@
     }
 
     function calculateDamage(attacker, defender, move) {
-        if(move.power === 0) return 0;
+        if (move.power === 0) return { damage: 0, effectiveness: 1 };
         
         let typeEffectiveness = 1;
         // Basic type matchups vs Snorlax (Normal)
@@ -1193,7 +1193,8 @@
             if (defender.name === 'Gengar') typeEffectiveness = 0; // Ghost immune to normal
         }
         
-        let damage = Math.floor((((2 * 10 / 5 + 2) * move.power * (attacker.attack / defender.defense)) / 50 + 2) * typeEffectiveness);
+        const defenseFactor = Math.max(1, defender.defense);
+        let damage = Math.floor((((2 * 10 / 5 + 2) * move.power * attacker.attack) / (50 * defenseFactor)) + 2);
         
         // Add slight randomness (85% to 100%)
         damage = Math.floor(damage * (Math.floor(Math.random() * 16) + 85) / 100);
@@ -1243,13 +1244,17 @@
             await playDamageAnimation(false);
             playSound(sounds.hit);
             enemy.hp = Math.max(0, enemy.hp - hit.damage);
+            enemy.defense = Math.max(1, enemy.defense - 1);
             updateUI();
             
             if (hit.effectiveness > 1) {
-                elements.msg.innerHTML = "It's super effective!";
+                elements.msg.innerHTML = `It's super effective! ${enemy.name}'s defense decreased!`;
                 await sleep(1500);
             } else if (hit.effectiveness < 1) {
-                elements.msg.innerHTML = "It's not very effective...";
+                elements.msg.innerHTML = `It's not very effective, but ${enemy.name}'s defense still fell.`;
+                await sleep(1500);
+            } else {
+                elements.msg.innerHTML = `${enemy.name}'s defense decreased!`;
                 await sleep(1500);
             }
         }
@@ -1315,13 +1320,17 @@
             await playDamageAnimation(true);
             playSound(sounds.hit);
             player.hp = Math.max(0, player.hp - hit.damage);
+            player.defense = Math.max(1, player.defense - 1);
             updateUI();
 
             if (hit.effectiveness > 1) {
-                elements.msg.innerHTML = "It's super effective!";
+                elements.msg.innerHTML = `It's super effective! ${player.name}'s defense decreased!`;
                 await sleep(1500);
             } else if (hit.effectiveness < 1) {
-                elements.msg.innerHTML = "It's not very effective...";
+                elements.msg.innerHTML = `It's not very effective, but ${player.name}'s defense still fell.`;
+                await sleep(1500);
+            } else {
+                elements.msg.innerHTML = `${player.name}'s defense decreased!`;
                 await sleep(1500);
             }
         }
